@@ -19,13 +19,11 @@ Crocodoc.addComponent('page-text', function (scope) {
 
     var browser = scope.getUtility('browser'),
         subpx   = scope.getUtility('subpx'),
-        ajax    = scope.getUtility('ajax'),
         util    = scope.getUtility('common');
 
     var destroyed = false,
         loaded = false,
         $textLayer,
-        request,
         $loadTextLayerHTMLPromise,
         textSrc,
         viewerConfig = scope.getConfig();
@@ -48,7 +46,7 @@ Crocodoc.addComponent('page-text', function (scope) {
     function completeLoad(text) {
         var doc, textEl;
 
-        if (!text || loaded) {
+        if (!text || loaded || destroyed) {
             return;
         }
 
@@ -79,15 +77,6 @@ Crocodoc.addComponent('page-text', function (scope) {
     }
 
     /**
-     * Handle failure loading HTML text
-     * @returns {void}
-     * @private
-     */
-    function handleHTMLTextFail(error) {
-        scope.broadcast('asseterror', error);
-    }
-
-    /**
      * Load text html if necessary and insert it into the element
      * @returns {$.Promise}
      * @private
@@ -97,46 +86,8 @@ Crocodoc.addComponent('page-text', function (scope) {
         if ($loadTextLayerHTMLPromise) {
             return $loadTextLayerHTMLPromise;
         }
-        var $deferred = $.Deferred();
 
-        request = ajax.request(textSrc, {
-            success: function () {
-                if (destroyed) {
-                    return;
-                }
-
-                request = null;
-                if (this.responseText.length === 0) {
-                    handleHTMLTextFail({
-                        error: 'empty response',
-                        status: this.status,
-                        resource: textSrc
-                    });
-                }
-
-                // always reslove, because text layer failure shouldn't
-                // prevent a page from being viewed
-                $deferred.resolve(this.responseText);
-            },
-            fail: function () {
-                if (destroyed) {
-                    return;
-                }
-
-                request = null;
-                handleHTMLTextFail({
-                    error: this.statusText,
-                    status: this.status,
-                    resource: textSrc
-                });
-
-                // always reslove, because text layer failure shouldn't
-                // prevent a page from being viewed
-                $deferred.resolve();
-            }
-        });
-
-        $loadTextLayerHTMLPromise = $deferred.promise();
+        $loadTextLayerHTMLPromise = scope.get('page-text', textSrc);
         return $loadTextLayerHTMLPromise;
     }
 
@@ -182,11 +133,27 @@ Crocodoc.addComponent('page-text', function (scope) {
          * text layer should not be loaded
          */
         load: function () {
+            var $deferred = $.Deferred();
             if (shouldUseTextLayer()) {
-                return loadTextLayerHTML()
-                    .then(completeLoad);
+                loadTextLayerHTML()
+                    .then(function loadTextLayerHTMLSuccess(text) {
+                        completeLoad(text);
+                    })
+                    .fail(function loadTextLayerHTMLFail(error) {
+                        if (error) {
+                            scope.broadcast('asseterror', error);
+                        }
+                    })
+                    .always(function loadTextLayerHTMLAlways() {
+                        // Always resolve so that a text layer
+                        // failing does not stop the page from
+                        // loading.
+                        $deferred.resolve();
+                    });
+            } else {
+                $deferred.reject();
             }
-            return false;
+            return $deferred;
         },
 
         /**
@@ -194,9 +161,8 @@ Crocodoc.addComponent('page-text', function (scope) {
          * @returns {void}
          */
         unload: function () {
-            if (request && request.abort) {
-                request.abort();
-                request = null;
+            if ($loadTextLayerHTMLPromise) {
+                $loadTextLayerHTMLPromise.abort();
                 $loadTextLayerHTMLPromise = null;
             }
         },

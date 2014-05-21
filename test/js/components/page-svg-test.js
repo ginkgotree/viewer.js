@@ -23,11 +23,11 @@ module('Component - page-svg', {
     }
 });
 
-test('preload() should create and insert the SVG object into the container element and make an ajax request when called (using proxy svg)', function () {
+test('preload() should create and insert the SVG object into the container element and make a data provider request when called (using proxy svg)', function () {
     var initalHTML = this.$el.html();
-    this.mock(this.utilities.ajax)
-        .expects('request')
-        .withArgs(this.config.svgSrc, sinon.match.object);
+    this.mock(this.scope)
+        .expects('get')
+        .withArgs('page-svg', this.config.svgSrc);
     this.component.preload();
     ok(this.$el.html() !== initalHTML, 'the element has been inserted');
 });
