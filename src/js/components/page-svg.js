@@ -69,14 +69,12 @@ Crocodoc.addComponent('page-svg', function (scope) {
         EMBED_STRATEGY_DATA_URL_IMG = 8;
 
     var util = scope.getUtility('common'),
-        ajax    = scope.getUtility('ajax'),
         browser = scope.getUtility('browser'),
         subpx = scope.getUtility('subpx'),
         DOMParser = window.DOMParser;
 
     var $svg, $svgLayer,
         $loadSVGTextPromise,
-        request,
         config,
         baseURL,
         queryString,
@@ -192,56 +190,21 @@ Crocodoc.addComponent('page-svg', function (scope) {
         if ($loadSVGTextPromise) {
             return $loadSVGTextPromise;
         }
-        var url = svgSrc + queryString,
-            $deferred = $.Deferred();
+        var url = svgSrc + queryString;
 
         if (!$svg) {
-            $deferred.reject({
+            // If the svg element is not available, bypass asset loading
+            // and return something that mimics a data-provider promise.
+            return $.Deferred().reject({
                 error: 'Error creating SVG element',
                 status: 200,
                 resource: url
+            }).promise({
+                abort: function() {}
             });
-            return;
         }
 
-        request = ajax.request(url, {
-            success: function () {
-                if (destroyed) {
-                    return;
-                }
-                // we need to replace & characters in the query string, because they are invalid in SVG
-                var text = this.responseText;
-
-                // if the response comes back empty,
-                if (!text) {
-                    $deferred.reject({
-                        error: 'Response was empty',
-                        status: 200,
-                        resource: url
-                    });
-                    return;
-                }
-
-                text = processSVGText(text);
-
-                svgText = text;
-
-                $deferred.resolve();
-            },
-            fail: function () {
-                if (destroyed) {
-                    return;
-                }
-                svgText = null;
-                $deferred.reject({
-                    error: this.statusText,
-                    status: this.status,
-                    resource: url
-                });
-            }
-        });
-
-        $loadSVGTextPromise = $deferred.promise();
+        $loadSVGTextPromise = scope.get('page-svg', url);
         return $loadSVGTextPromise;
     }
 
@@ -499,10 +462,12 @@ Crocodoc.addComponent('page-svg', function (scope) {
                     $deferred.resolve();
                 } else {
                     loadSVGText()
-                        .then(function loadSVGTextSuccess() {
+                        .then(function loadSVGTextSuccess(text) {
                             if (destroyed || unloaded) {
                                 return;
                             }
+                            svgText = processSVGText(text);
+
                             embedSVG();
                             completeLoad();
                             $deferred.resolve();
@@ -510,9 +475,6 @@ Crocodoc.addComponent('page-svg', function (scope) {
                         .fail(function loadSVGTextFail(error) {
                             completeLoad(error);
                             $deferred.reject(error);
-                        })
-                        .always(function loadSVGAlways() {
-                            request = null;
                         });
                 }
             }
@@ -526,9 +488,8 @@ Crocodoc.addComponent('page-svg', function (scope) {
         unload: function () {
             unloaded = true;
             // stop loading the page if it hasn't finished yet
-            if (request && request.abort) {
-                request.abort();
-                request = null;
+            if ($loadSVGTextPromise) {
+                $loadSVGTextPromise.abort();
                 $loadSVGTextPromise = null;
             }
             if (removeOnUnload) {

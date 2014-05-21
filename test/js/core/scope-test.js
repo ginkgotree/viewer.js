@@ -1,4 +1,4 @@
-module('Famework - Scope', {
+module('Framework - Scope', {
     setup: function () {
         this.framework = Crocodoc;
         this.scope = new Crocodoc.Scope(this.framework);
@@ -88,4 +88,43 @@ test('getUtility() should call framework.getUtility() when called', function () 
         .expects('getUtility')
         .withArgs(utilName);
     this.scope.getUtility(utilName);
+});
+
+module('Framework - Scope - DataProviders', {
+    setup: function () {
+        this.framework = Crocodoc;
+        this.scope = new Crocodoc.Scope(this.framework);
+    },
+    teardown: function () {
+        this.scope.destroy();
+    }
+});
+
+test('get() should call createComponent() if a dataProvider has not been instantiated', function() {
+    var dataProviderName = 'page-svg-for-scope-test';
+    this.mock(this.scope)
+        .expects('createComponent')
+        .withArgs('dataprovider-' + dataProviderName)
+        .returns({get:function(){}});
+
+    this.scope.get(dataProviderName, 'testdatadoesnotmatter');
+});
+
+test('get() should NOT call createComponent() if a dataProvider has already been instantiated', function() {
+    var dataProviderName = 'page-svg-for-scope-test';
+    this.framework.addDataProvider([dataProviderName], function(){return{get:function(){}};});
+    // Instantiate it the first time to cache the provider
+    this.scope.get(dataProviderName, 'testdatadoesnotmatter');
+    this.mock(this.scope)
+        .expects('createComponent')
+        .never();
+
+    this.scope.get(dataProviderName, 'testdatadoesnotmatter');
+});
+
+test('get() should call the get() method on the return object from the dataProvider', function() {
+    var dataProviderName = 'page-svg-for-scope-test';
+    var getFunction = this.mock().once();
+    this.framework.addDataProvider([dataProviderName], function(){return {get:getFunction};});
+    this.scope.get(dataProviderName, 'testdatadoesnotmatter');
 });

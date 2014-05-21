@@ -15,7 +15,8 @@
 
         var util = Crocodoc.getUtility('common');
 
-        var instances = [];
+        var instances = [],
+            dataProviders = {};
 
         /**
          * Create and return an instance of the named component,
@@ -65,6 +66,7 @@
                 }
             }
             instances = [];
+            dataProviders = {};
         };
 
         /**
@@ -106,6 +108,25 @@
          */
         this.getConfig = function () {
             return config;
+        };
+
+        /**
+         * Get a model object from a data provider.
+         *
+         * @param {string} objectType The type of object to retrieve ('page-svg', 'page-text', etc)
+         * @param {string} objectKey  The key of the object to retrieve
+         * @returns {$.Promise}
+         */
+        this.get = function(objectType, objectKey) {
+            var provider;
+            if (dataProviders[objectType]) {
+                provider = dataProviders[objectType];
+            } else {
+                provider = this.createComponent('dataprovider-' + objectType);
+                dataProviders[objectType] = provider;
+            }
+
+            return provider.get(objectType, objectKey);
         };
     };
 })();

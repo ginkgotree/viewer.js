@@ -21,6 +21,7 @@ Crocodoc.getScopeForTest = function (testContext) {
         getConfig: function () {
             return testContext.config;
         },
+        get: function() {},
         destroyComponent: function () {},
         broadcast: function () {},
         destroy: function () {}
