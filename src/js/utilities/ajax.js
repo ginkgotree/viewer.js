@@ -55,7 +55,7 @@ Crocodoc.addUtility('ajax', function (framework) {
 
     return {
         /**
-         * Basic AJAX request
+         * Make a raw AJAX request
          * @param   {string}     url               request URL
          * @param   {Object}     [options]         AJAX request options
          * @param   {string}     [options.method]  request method, eg. 'GET', 'POST' (defaults to 'GET')
@@ -154,6 +154,66 @@ Crocodoc.addUtility('ajax', function (framework) {
             }
 
             return req;
+        },
+
+        /**
+         * Fetch an asset, retrying if necessary
+         * @param {string} url      A url for the desired asset
+         * @param {number} retries  The number of times to retry if the request fails
+         * @returns {$.Promise}     A promise with an additional abort() method that will abort the XHR request.
+         */
+        fetch: function (url, retries) {
+            var req,
+                aborted = false,
+                ajax = framework.getUtility('ajax'),
+                $deferred = $.Deferred();
+
+            function retryOrFail(error) {
+                if (retries > 0) {
+                    retries--;
+                    req = request();
+                } else {
+                    // finally give up
+                    $deferred.reject(error);
+                }
+            }
+
+            function request() {
+                return ajax.request(url, {
+                    success: function () {
+                        if (aborted) {
+                            return;
+                        }
+                        if (!this.responseText) {
+                            retryOrFail({
+                                error: 'empty response',
+                                status: this.status,
+                                resource: url
+                            });
+                            return;
+                        }
+                        $deferred.resolve(this.responseText);
+                    },
+                    fail: function () {
+                        if (aborted) {
+                            return;
+                        }
+                        retryOrFail({
+                            error: this.statusText,
+                            status: this.status,
+                            resource: url
+                        });
+                    }
+                });
+            }
+
+            req = request();
+            return $deferred.promise({
+                abort: function() {
+                    aborted = true;
+                    req.abort();
+                }
+            });
         }
     };
 });

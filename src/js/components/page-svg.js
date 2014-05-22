@@ -441,7 +441,7 @@ Crocodoc.addComponent('page-svg', function (scope) {
          * Load the SVG and call callback when complete.
          * If there was an error, callback's first argument will be
          * an error message, and falsy otherwise.
-         * @returns {$.Deferred}    A jQuery Deferred object
+         * @returns {$.Promise}    A jQuery promise object
          */
         load: function () {
             unloaded = false;
@@ -478,7 +478,7 @@ Crocodoc.addComponent('page-svg', function (scope) {
                         });
                 }
             }
-            return $deferred;
+            return $deferred.promise();
         },
 
         /**

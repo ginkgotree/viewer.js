@@ -151,9 +151,9 @@ Crocodoc.addComponent('page-text', function (scope) {
                         $deferred.resolve();
                     });
             } else {
-                $deferred.reject();
+                $deferred.resolve();
             }
-            return $deferred;
+            return $deferred.promise();
         },
 
         /**

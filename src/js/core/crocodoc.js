@@ -126,18 +126,11 @@ var Crocodoc = (function () {
 
         /**
          * Register a new Crocodoc data provider
-         * @param {array} modelNames The list of model names this data provider provides
+         * @param {string} modelName The model name this data provider provides
          * @param {Function} creator Factory function used to create an instance of the data provider.
          */
-        addDataProvider: function(modelNames, creator) {
-            var i,
-                len = modelNames.length,
-                modelName;
-
-            for (i = 0; i < len; i++) {
-                modelName = modelNames[i];
-                this.addComponent('dataprovider-' + modelName, creator);
-            }
+        addDataProvider: function(modelName, creator) {
+            this.addComponent('dataprovider-' + modelName, creator);
         },
 
         /**
