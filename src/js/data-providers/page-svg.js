@@ -36,7 +36,6 @@ Crocodoc.addDataProvider('page-svg', function(scope) {
         // @TODO: remove this, because we no longer use any external assets in this way
         // modify external asset urls for absolute path
         text = text.replace(/href="([^"#:]*)"/g, function (match, group) {
-            console.log(baseURL + group + query)
             return 'href="' + baseURL + group + query + '"';
         });
 

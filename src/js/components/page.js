@@ -31,8 +31,6 @@ Crocodoc.addComponent('page', function (scope) {
         loadRequested = false;
 
     return {
-        errorCount: 0,
-
         messages: ['pageavailable', 'textenabledchange', 'pagefocus', 'zoom'],
 
         /**
@@ -158,22 +156,10 @@ Crocodoc.addComponent('page', function (scope) {
                     }
                 })
                 .fail(function handleLoadFail() {
-                    status = Crocodoc.PAGE_STATUS_NOT_LOADED;
-                    $el.removeClass(CSS_CLASS_PAGE_LOADING);
+                    status = Crocodoc.PAGE_STATUS_ERROR;
+                    $el.addClass(CSS_CLASS_PAGE_ERROR);
+                    scope.broadcast('pagefail', { page: index + 1, error: error });
                 });
-        },
-
-
-        /**
-         * Mark the page as failed, i.e., loading will not be retried again for this page
-         * and broadcast a pagefail event for this page
-         * @param {Object} error The error object
-         * @returns {void}
-         */
-        fail: function (error) {
-            status = Crocodoc.PAGE_STATUS_ERROR;
-            $el.addClass(CSS_CLASS_PAGE_ERROR);
-            scope.broadcast('pagefail', { page: index + 1, error: error });
         },
 
         /**

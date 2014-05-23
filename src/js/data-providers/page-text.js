@@ -9,9 +9,15 @@ Crocodoc.addDataProvider('page-text', function(scope) {
 
     var util = scope.getUtility('common'),
         ajax = scope.getUtility('ajax'),
-        config = scope.getConfig();
+        config = scope.getConfig(),
+        baseURL = util.makeAbsolute(config.url);
 
-
+    /**
+     * Process HTML text and return the embeddable result
+     * @param   {string} text The original HTML text
+     * @returns {string}      The processed HTML text
+     * @private
+     */
     function processTextContent(text) {
         // in the text layer, divs are only used for text boxes, so
         // they should provide an accurate count
@@ -41,7 +47,7 @@ Crocodoc.addDataProvider('page-text', function(scope) {
          */
         get: function(modelName, pageNum) {
             var textPath = util.template(config.template.html, { page: pageNum }),
-                url = config.url + textPath + config.queryString,
+                url = baseURL + textPath + config.queryString,
                 $promise = ajax.fetch(url, 1);
 
             return $promise.then(processTextContent).promise({
