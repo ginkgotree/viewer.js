@@ -60,7 +60,7 @@ Crocodoc.addComponent('page-img', function (scope) {
         load: function () {
             if (!$loadImgPromise) {
                 $loadImgPromise = scope.get('page-img', page)
-                    .then(function loadImgSuccess(img) {
+                    .done(function loadImgSuccess(img) {
                         $img = $(img).appendTo($el);
                     })
                     .fail(function loadImgFail(error) {
@@ -79,11 +79,11 @@ Crocodoc.addComponent('page-img', function (scope) {
         unload: function () {
             if ($loadImgPromise) {
                 $loadImgPromise.abort();
-                $loadImgPromise = null;
             }
             if ($img && removeOnUnload) {
                 $img.remove();
                 $img = null;
+                $loadImgPromise = null;
             } else if ($img) {
                 $img.hide();
             }

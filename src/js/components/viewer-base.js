@@ -59,7 +59,6 @@ Crocodoc.addComponent('viewer-base', function (scope) {
     var DOCUMENT_100_PERCENT_WIDTH = 1024;
 
     var util = scope.getUtility('common'),
-        ajax = scope.getUtility('ajax'),
         browser = scope.getUtility('browser'),
         support = scope.getUtility('support');
 
@@ -568,6 +567,7 @@ Crocodoc.addComponent('viewer-base', function (scope) {
 
             validateQueryParams();
 
+            // @TODO: abort requests if the viewer is destroyed
             $loadMetadataPromise = scope.get('metadata');
             $loadMetadataPromise.then(function handleMetadataResponse(metadata) {
                 config.metadata = metadata;
@@ -591,6 +591,7 @@ Crocodoc.addComponent('viewer-base', function (scope) {
             // when both metatadata and stylesheet are done or if either fails...
             $.when($loadMetadataPromise, $loadStylesheetPromise)
                 .fail(function (error) {
+                    scope.broadcast('asseterror', error);
                     scope.broadcast('fail', error);
                 })
                 .then(completeInit);

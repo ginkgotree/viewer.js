@@ -118,15 +118,29 @@
          * @returns {$.Promise}
          */
         this.get = function(objectType, objectKey) {
+            var provider = this.getDataProvider(objectType);
+            if (provider) {
+                return provider.get(objectType, objectKey);
+            }
+            return $.Deferred().reject('data-provider not found').promise();
+        };
+
+        /**
+         * Get an instance of a data provider.
+         *
+         * @param {string} objectType The type of object to retrieve a data provider for ('page-svg', 'page-text', etc)
+         * @returns {Object} The data provider
+         */
+        this.getDataProvider = function (objectType) {
             var provider;
             if (dataProviders[objectType]) {
                 provider = dataProviders[objectType];
             } else {
-                provider = this.createComponent('dataprovider-' + objectType);
+                provider = this.createComponent('data-provider-' + objectType);
                 dataProviders[objectType] = provider;
             }
 
-            return provider.get(objectType, objectKey);
+            return provider;
         };
     };
 })();

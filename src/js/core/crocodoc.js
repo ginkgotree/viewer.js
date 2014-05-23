@@ -133,7 +133,7 @@ var Crocodoc = (function () {
          * @param {Function} creator Factory function used to create an instance of the data provider.
          */
         addDataProvider: function(modelName, creator) {
-            this.addComponent('dataprovider-' + modelName, creator);
+            this.addComponent('data-provider-' + modelName, creator);
         },
 
         /**

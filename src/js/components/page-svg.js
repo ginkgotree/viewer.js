@@ -71,10 +71,8 @@ Crocodoc.addComponent('page-svg', function (scope) {
         DOMParser = window.DOMParser;
 
     var $svg, $svgLayer,
-        $loadSVGTextPromise,
+        $loadSVGPromise,
         page,
-        queryString,
-        svgSrc,
         svgText,
         destroyed = false,
         unloaded = false,
@@ -141,10 +139,6 @@ Crocodoc.addComponent('page-svg', function (scope) {
      * @private
      */
     function loadSVGText() {
-        // already load(ed|ing)?
-        if ($loadSVGTextPromise) {
-            return $loadSVGTextPromise;
-        }
         if (!$svg) {
             // If the svg element is not available, bypass asset loading
             // and return something that mimics a data-provider promise.
@@ -157,8 +151,17 @@ Crocodoc.addComponent('page-svg', function (scope) {
             });
         }
 
-        $loadSVGTextPromise = scope.get('page-svg', page);
-        return $loadSVGTextPromise;
+        if (embedStrategy === EMBED_STRATEGY_BASIC_OBJECT ||
+            embedStrategy === EMBED_STRATEGY_BASIC_IMG)
+        {
+            // don't load the SVG text, just embed the object with
+            // the source pointed at the correct location
+            return $.Deferred().resolve().promise({
+                abort: function() {}
+            });
+        } else {
+            return scope.get('page-svg', page);
+        }
     }
 
     /**
@@ -275,14 +278,14 @@ Crocodoc.addComponent('page-svg', function (scope) {
             case EMBED_STRATEGY_BASIC_OBJECT:
                 $svg.attr({
                     type: SVG_MIME_TYPE,
-                    data: svgSrc + queryString
+                    data: scope.getDataProvider('page-svg').getURL(page)
                 });
                 svgEl = $svg[0];
                 break;
 
             case EMBED_STRATEGY_BASIC_IMG:
                 svgEl = $svg[0];
-                svgEl.src = svgSrc + queryString;
+                svgEl.src = scope.getDataProvider('page-svg').getURL(page);
                 break;
 
             case EMBED_STRATEGY_DATA_URL_IMG:
@@ -330,26 +333,6 @@ Crocodoc.addComponent('page-svg', function (scope) {
         };
     }
 
-    /**
-     * Function to call when loading is complete (success or not)
-     * @param   {*} error Error param; if truthy, assume there was an error
-     * @returns {void}
-     * @private
-     */
-    function completeLoad(error) {
-        if (error) {
-            scope.broadcast('asseterror', error);
-            svgLoaded = false;
-            $loadSVGTextPromise = null;
-        } else {
-            if ($svg.parent().length === 0) {
-                $svg.appendTo($svgLayer);
-            }
-            $svg.show();
-            svgLoaded = true;
-        }
-    }
-
     //--------------------------------------------------------------------------
     // Public
     //--------------------------------------------------------------------------
@@ -374,6 +357,7 @@ Crocodoc.addComponent('page-svg', function (scope) {
          */
         destroy: function () {
             destroyed = true;
+            removeOnUnload = true;
             this.unload();
             $svgLayer.empty();
         },
@@ -384,7 +368,10 @@ Crocodoc.addComponent('page-svg', function (scope) {
          */
         preload: function () {
             prepareSVGContainer();
-            loadSVGText();
+
+            if (!$loadSVGPromise) {
+                $loadSVGPromise = loadSVGText();
+            }
         },
 
         /**
@@ -395,40 +382,30 @@ Crocodoc.addComponent('page-svg', function (scope) {
          */
         load: function () {
             unloaded = false;
-            var $deferred = $.Deferred();
+            this.preload();
 
-            if (svgLoaded) {
-                completeLoad();
-                $deferred.resolve();
-            } else {
-                prepareSVGContainer();
-                if (embedStrategy === EMBED_STRATEGY_BASIC_OBJECT ||
-                    embedStrategy === EMBED_STRATEGY_BASIC_IMG)
-                {
-                    // don't load the SVG text, just embed the object with
-                    // the source pointed at the correct location
-                    embedSVG();
-                    completeLoad();
-                    $deferred.resolve();
-                } else {
-                    loadSVGText()
-                        .then(function loadSVGTextSuccess(text) {
-                            if (destroyed || unloaded) {
-                                return;
-                            }
-
-                            svgText = text;
-                            embedSVG();
-                            completeLoad();
-                            $deferred.resolve();
-                        })
-                        .fail(function loadSVGTextFail(error) {
-                            completeLoad(error);
-                            $deferred.reject(error);
-                        });
+            $loadSVGPromise.done(function loadSVGSuccess(text) {
+                if (!destroyed && !unloaded) {
+                    if (!svgLoaded) {
+                        svgLoaded = true;
+                        svgText = text;
+                        embedSVG();
+                    }
+                    // always insert and show the svg el when load was successful
+                    if ($svg.parent().length === 0) {
+                        $svg.appendTo($svgLayer);
+                    }
+                    $svg.show();
                 }
-            }
-            return $deferred.promise();
+            });
+
+            $loadSVGPromise.fail(function loadSVGFail(error) {
+                scope.broadcast('asseterror', error);
+                svgLoaded = false;
+                $loadSVGPromise = null;
+            });
+
+            return $loadSVGPromise;
         },
 
         /**
@@ -438,11 +415,11 @@ Crocodoc.addComponent('page-svg', function (scope) {
         unload: function () {
             unloaded = true;
             // stop loading the page if it hasn't finished yet
-            if ($loadSVGTextPromise) {
-                $loadSVGTextPromise.abort();
-                $loadSVGTextPromise = null;
+            if ($loadSVGPromise) {
+                $loadSVGPromise.abort();
             }
             if (removeOnUnload) {
+                $loadSVGPromise = null;
                 if ($svg) {
                     $svg.remove();
                     $svg = null;

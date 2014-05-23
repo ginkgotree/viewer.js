@@ -58,9 +58,9 @@ test('createComponent() should return null when called for a non-existing module
     equal(module, null, 'null returned');
 });
 
-test('addDataProvider() should call addComponent when multiple models are passed in', function() {
-    this.mock(Crocodoc).expects('addComponent').twice();
-    Crocodoc.addDataProvider(['page-text', 'page-svg']);
+test('addDataProvider() should call addComponent when a model name and creator function are passed in', function() {
+    this.mock(Crocodoc).expects('addComponent');
+    Crocodoc.addDataProvider('my-data-provider', function () {});
 });
 
 module('Framework - createViewer', {

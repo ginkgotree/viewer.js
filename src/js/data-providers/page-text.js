@@ -24,7 +24,7 @@ Crocodoc.addDataProvider('page-text', function(scope) {
         var numTextBoxes = util.countInStr(text, '<div');
         // too many textboxes... don't load this page for performance reasons
         if (numTextBoxes > MAX_TEXT_BOXES) {
-            return;
+            return '';
         }
 
         // remove reference to the styles
@@ -46,8 +46,7 @@ Crocodoc.addDataProvider('page-text', function(scope) {
          * @returns {$.Promise}      A promise with an additional abort() method that will abort the XHR request.
          */
         get: function(modelName, pageNum) {
-            var textPath = util.template(config.template.html, { page: pageNum }),
-                url = config.url + textPath + config.queryString,
+            var url = this.getURL(pageNum),
                 $promise = ajax.fetch(url, Crocodoc.ASSET_REQUEST_RETRIES);
 
             // @NOTE: promise.then() creates a new promise, which does not copy
@@ -56,6 +55,16 @@ Crocodoc.addDataProvider('page-text', function(scope) {
             return $promise.then(processTextContent).promise({
                 abort: $promise.abort
             });
+        },
+
+        /**
+         * Build and return the URL to the HTML asset for the specified page
+         * @param   {number} pageNum The page number
+         * @returns {string}         The URL
+         */
+        getURL: function (pageNum) {
+            var textPath = util.template(config.template.html, { page: pageNum });
+            return config.url + textPath + config.queryString;
         }
     };
 });

@@ -69,8 +69,7 @@ Crocodoc.addDataProvider('page-svg', function(scope) {
          * @returns {$.Promise}      A promise with an additional abort() method that will abort the XHR request.
          */
         get: function(modelName, pageNum) {
-            var svgPath = util.template(config.template.svg, { page: pageNum }),
-                url = config.url + svgPath + config.queryString,
+            var url = this.getURL(pageNum),
                 $promise = ajax.fetch(url, Crocodoc.ASSET_REQUEST_RETRIES);
 
             // @NOTE: promise.then() creates a new promise, which does not copy
@@ -79,6 +78,16 @@ Crocodoc.addDataProvider('page-svg', function(scope) {
             return $promise.then(processSVGContent).promise({
                 abort: $promise.abort
             });
+        },
+
+        /**
+         * Build and return the URL to the SVG asset for the specified page
+         * @param   {number} pageNum The page number
+         * @returns {string}         The URL
+         */
+        getURL: function (pageNum) {
+            var svgPath = util.template(config.template.svg, { page: pageNum });
+            return config.url + svgPath + config.queryString;
         }
     };
 });

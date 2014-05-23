@@ -22,7 +22,7 @@ Crocodoc.addComponent('page-text', function (scope) {
     var destroyed = false,
         loaded = false,
         $textLayer,
-        $loadTextLayerHTMLPromise,
+        $loadTextPromise,
         page,
         viewerConfig = scope.getConfig();
 
@@ -69,12 +69,17 @@ Crocodoc.addComponent('page-text', function (scope) {
      */
     function loadTextLayerHTML() {
         // already load(ed|ing)?
-        if ($loadTextLayerHTMLPromise) {
-            return $loadTextLayerHTMLPromise;
+        if (!$loadTextPromise) {
+            if (shouldUseTextLayer()) {
+                $loadTextPromise = scope.get('page-text', page);
+            } else {
+                $loadTextPromise = $.Deferred().resolve().promise({
+                    abort: function () {}
+                });
+            }
         }
 
-        $loadTextLayerHTMLPromise = scope.get('page-text', page);
-        return $loadTextLayerHTMLPromise;
+        return $loadTextPromise;
     }
 
     //--------------------------------------------------------------------------
@@ -98,6 +103,7 @@ Crocodoc.addComponent('page-text', function (scope) {
          */
         destroy: function () {
             destroyed = true;
+            this.unload();
             $textLayer.empty();
         },
 
@@ -114,31 +120,18 @@ Crocodoc.addComponent('page-text', function (scope) {
         /**
          * Load the html text for the text layer and insert it into the element
          * if text layer is enabled and is not loading/has not already been loaded
-         * @returns {$.Promise} A promise to load the text layer or false if the
-         * text layer should not be loaded
+         * @returns {$.Promise} A promise to load the text layer
          */
         load: function () {
-            var $deferred = $.Deferred();
-            if (shouldUseTextLayer()) {
-                loadTextLayerHTML()
-                    .then(function loadTextLayerHTMLSuccess(text) {
-                        completeLoad(text);
-                    })
-                    .fail(function loadTextLayerHTMLFail(error) {
-                        if (error) {
-                            scope.broadcast('asseterror', error);
-                        }
-                    })
-                    .always(function loadTextLayerHTMLAlways() {
-                        // Always resolve so that a text layer
-                        // failing does not stop the page from
-                        // loading.
-                        $deferred.resolve();
-                    });
-            } else {
-                $deferred.resolve();
-            }
-            return $deferred.promise();
+            return loadTextLayerHTML()
+                .done(function loadTextLayerHTMLSuccess(text) {
+                    completeLoad(text);
+                })
+                .fail(function loadTextLayerHTMLFail(error) {
+                    if (error) {
+                        scope.broadcast('asseterror', error);
+                    }
+                });
         },
 
         /**
@@ -146,9 +139,9 @@ Crocodoc.addComponent('page-text', function (scope) {
          * @returns {void}
          */
         unload: function () {
-            if ($loadTextLayerHTMLPromise) {
-                $loadTextLayerHTMLPromise.abort();
-                $loadTextLayerHTMLPromise = null;
+            if ($loadTextPromise) {
+                $loadTextPromise.abort();
+                $loadTextPromise = null;
             }
         },
 
@@ -158,6 +151,12 @@ Crocodoc.addComponent('page-text', function (scope) {
          */
         enable: function () {
             $textLayer.css('display', '');
+            // we created an empty promise if text selection was previously disabled,
+            // so we can scrap it so a new promise will be created next time this
+            // page is requested
+            if ($loadTextPromise && !loaded) {
+                $loadTextPromise = null;
+            }
         },
 
         /**

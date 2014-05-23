@@ -10,6 +10,7 @@ Crocodoc.getScopeForTest = function (testContext) {
     testContext = testContext || {};
     testContext.utilities = testContext.utilities || {};
     testContext.components = testContext.components || {};
+    testContext.dataProviders = testContext.dataProviders || {};
     testContext.config = testContext.config || {};
     return {
         getUtility: function (name) {
@@ -20,6 +21,9 @@ Crocodoc.getScopeForTest = function (testContext) {
         },
         getConfig: function () {
             return testContext.config;
+        },
+        getDataProvider: function () {
+            return testContext.dataProviders[name] || (testContext.dataProviders[name] = {});
         },
         get: function() {},
         destroyComponent: function () {},

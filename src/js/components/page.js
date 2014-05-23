@@ -120,26 +120,13 @@ Crocodoc.addComponent('page', function (scope) {
          * @returns {$.Promise}    jQuery Promise object or false if the page is not loading
          */
         load: function () {
-            var page = this,
-                $pageTextPromise;
+            var pageComponent = this;
 
             loadRequested = true;
 
             // the page has failed to load for good... don't try anymore
             if (status === Crocodoc.PAGE_STATUS_ERROR) {
                 return false;
-            }
-
-            if (status === Crocodoc.PAGE_STATUS_LOADED || status === Crocodoc.PAGE_STATUS_LOADING) {
-                // try to load the text layer even though status is loaded,
-                // because it might have been disabled the last time page
-                // load was requested
-                $pageTextPromise = pageText.load();
-                // if the page is not loading, return false
-                if ($pageTextPromise && $pageTextPromise.state() !== 'pending') {
-                    return false;
-                }
-                return $pageTextPromise;
             }
 
             // don't actually load if the page is converting
@@ -156,7 +143,7 @@ Crocodoc.addComponent('page', function (scope) {
                         $el.removeClass(CSS_CLASS_PAGE_LOADING);
                         scope.broadcast('pageload', { page: pageNum });
                     } else {
-                        page.unload();
+                        pageComponent.unload();
                     }
                 })
                 .fail(function handleLoadFail(error) {
