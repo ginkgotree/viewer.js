@@ -78,24 +78,24 @@ Crocodoc.addComponent('page', function (scope) {
             $text = $pageEl.find('.' + CSS_CLASS_PAGE_TEXT);
             $links = $pageEl.find('.' + CSS_CLASS_PAGE_LINKS);
 
+            status = config.status || Crocodoc.PAGE_STATUS_NOT_LOADED;
+            index = config.index;
+            pageNum = index + 1;
+            this.config = config;
+
             config.url = config.url || '';
             pageText = scope.createComponent('page-text');
             pageContent = support.svg ?
                     scope.createComponent('page-svg') :
                     scope.createComponent('page-img');
 
-            pageText.init($text, config);
-            pageContent.init($svg, config);
+            pageText.init($text, pageNum);
+            pageContent.init($svg, pageNum);
 
             if (config.enableLinks && config.links.length) {
                 pageLinks = scope.createComponent('page-links');
                 pageLinks.init($links, config.links);
             }
-
-            status = config.status || Crocodoc.PAGE_STATUS_NOT_LOADED;
-            index = config.index;
-            pageNum = index + 1;
-            this.config = config;
         },
 
         /**

@@ -5,7 +5,27 @@
 Crocodoc.addDataProvider('page-text', function(scope) {
     'use strict';
 
-    var ajax = scope.getUtility('ajax');
+    var MAX_TEXT_BOXES = 256;
+
+    var util = scope.getUtility('common'),
+        ajax = scope.getUtility('ajax'),
+        config = scope.getConfig();
+
+
+    function processTextContent(text) {
+        // in the text layer, divs are only used for text boxes, so
+        // they should provide an accurate count
+        var numTextBoxes = util.countInStr(text, '<div');
+        // too many textboxes... don't load this page for performance reasons
+        if (numTextBoxes > MAX_TEXT_BOXES) {
+            return;
+        }
+
+        // remove reference to the styles
+        text = text.replace(/<link rel="stylesheet".*/, '');
+
+        return text;
+    }
 
     //--------------------------------------------------------------------------
     // Public
@@ -13,14 +33,20 @@ Crocodoc.addDataProvider('page-text', function(scope) {
 
     return {
         /**
-         * Retrieve a model object from the server
+         * Retrieve a text asset from the server
          *
-         * @param {string} modelName The caller will pass the modelName ('page-svg', etc) just in case
-         * @param {string} url       The full path to the asset on the server
+         * @param {string} modelName The name of the requested model (page-text)
+         * @param {number} pageNum   The page number for which to request the text HTML
          * @returns {$.Promise}      A promise with an additional abort() method that will abort the XHR request.
          */
-        get: function(modelName, url) {
-            return ajax.fetch(url, 1);
+        get: function(modelName, pageNum) {
+            var textPath = util.template(config.template.html, { page: pageNum }),
+                url = config.url + textPath + config.queryString,
+                $promise = ajax.fetch(url, 1);
+
+            return $promise.then(processTextContent).promise({
+                abort: $promise.abort
+            });
         }
     };
 });

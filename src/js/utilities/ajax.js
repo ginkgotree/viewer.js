@@ -168,8 +168,16 @@ Crocodoc.addUtility('ajax', function (framework) {
                 ajax = framework.getUtility('ajax'),
                 $deferred = $.Deferred();
 
+            /**
+             * If there are retries remaining, make another attempt, otherwise
+             * give up and reject the deferred
+             * @param   {Object} error The error object
+             * @returns {void}
+             * @private
+             */
             function retryOrFail(error) {
                 if (retries > 0) {
+                    // if we have retries remaining, make another request
                     retries--;
                     req = request();
                 } else {
@@ -178,31 +186,36 @@ Crocodoc.addUtility('ajax', function (framework) {
                 }
             }
 
+            /**
+             * Make an AJAX request for the asset
+             * @returns {XMLHttpRequest|XDomainRequest} Request object
+             * @private
+             */
             function request() {
                 return ajax.request(url, {
                     success: function () {
-                        if (aborted) {
-                            return;
+                        if (!aborted) {
+                            if (this.responseText) {
+                                $deferred.resolve(this.responseText);
+                            } else {
+                                // the response was empty, so consider this a
+                                // failed request
+                                retryOrFail({
+                                    error: 'empty response',
+                                    status: this.status,
+                                    resource: url
+                                });
+                            }
                         }
-                        if (!this.responseText) {
+                    },
+                    fail: function () {
+                        if (!aborted) {
                             retryOrFail({
-                                error: 'empty response',
+                                error: this.statusText,
                                 status: this.status,
                                 resource: url
                             });
-                            return;
                         }
-                        $deferred.resolve(this.responseText);
-                    },
-                    fail: function () {
-                        if (aborted) {
-                            return;
-                        }
-                        retryOrFail({
-                            error: this.statusText,
-                            status: this.status,
-                            resource: url
-                        });
                     }
                 });
             }

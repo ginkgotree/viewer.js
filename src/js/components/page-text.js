@@ -14,18 +14,16 @@ Crocodoc.addComponent('page-text', function (scope) {
     // Private
     //--------------------------------------------------------------------------
 
-    var CSS_CLASS_PAGE_TEXT = 'crocodoc-page-text',
-        MAX_TEXT_BOXES = 256;
+    var CSS_CLASS_PAGE_TEXT = 'crocodoc-page-text';
 
     var browser = scope.getUtility('browser'),
-        subpx   = scope.getUtility('subpx'),
-        util    = scope.getUtility('common');
+        subpx   = scope.getUtility('subpx');
 
     var destroyed = false,
         loaded = false,
         $textLayer,
         $loadTextLayerHTMLPromise,
-        textSrc,
+        page,
         viewerConfig = scope.getConfig();
 
     /**
@@ -52,18 +50,6 @@ Crocodoc.addComponent('page-text', function (scope) {
 
         loaded = true;
 
-        // in the text layer, divs are only used for text boxes, so
-        // they should provide an accurate count
-        var numTextBoxes = util.countInStr(text, '<div');
-        // too many textboxes... don't load this page for performance reasons
-        if (numTextBoxes > MAX_TEXT_BOXES) {
-            return;
-        }
-
-        // remove reference to the styles
-        // @TODO: stylesheet should not be referenced in text layer html
-        text = text.replace(/<link rel="stylesheet".*/, '');
-
         // create a document to parse the html text
         doc = document.implementation.createHTMLDocument('');
         doc.getElementsByTagName('body')[0].innerHTML = text;
@@ -87,7 +73,7 @@ Crocodoc.addComponent('page-text', function (scope) {
             return $loadTextLayerHTMLPromise;
         }
 
-        $loadTextLayerHTMLPromise = scope.get('page-text', textSrc);
+        $loadTextLayerHTMLPromise = scope.get('page-text', page);
         return $loadTextLayerHTMLPromise;
     }
 
@@ -99,12 +85,11 @@ Crocodoc.addComponent('page-text', function (scope) {
         /**
          * Initialize the page-text component
          * @param {jQuery} $el The jQuery element to load the text layer into
-         * @param  {Object} config Configuration options
          * @returns {void}
          */
-        init: function ($el, config) {
+        init: function ($el, pageNum) {
             $textLayer = $el;
-            textSrc = config.textSrc + config.queryString;
+            page = pageNum;
         },
 
         /**

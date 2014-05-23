@@ -16,8 +16,7 @@ Crocodoc.addComponent('page-svg', function (scope) {
 
     // @NOTE: MAX_DATA_URLS is the maximum allowed number of data-urls in svg
     // content before we give up and stop rendering them
-    var MAX_DATA_URLS = 1000,
-        SVG_MIME_TYPE = 'image/svg+xml',
+    var SVG_MIME_TYPE = 'image/svg+xml',
         HTML_TEMPLATE = '<style>html,body{width:100%;height:100%;margin:0;overflow:hidden;}</style>',
         SVG_CONTAINER_TEMPLATE = '<svg version="1.1" xmlns="http://www.w3.org/2000/svg"><script><![CDATA[('+proxySVG+')()]]></script></svg>',
 
@@ -68,15 +67,12 @@ Crocodoc.addComponent('page-svg', function (scope) {
         // @NOTE: this method seems to be more performant on IE
         EMBED_STRATEGY_DATA_URL_IMG = 8;
 
-    var util = scope.getUtility('common'),
-        browser = scope.getUtility('browser'),
-        subpx = scope.getUtility('subpx'),
+    var browser = scope.getUtility('browser'),
         DOMParser = window.DOMParser;
 
     var $svg, $svgLayer,
         $loadSVGTextPromise,
-        config,
-        baseURL,
+        page,
         queryString,
         svgSrc,
         svgText,
@@ -140,47 +136,6 @@ Crocodoc.addComponent('page-svg', function (scope) {
     }
 
     /**
-     * Process SVG text and return the embeddable result
-     * @param   {string} text The original SVG text
-     * @returns {string}      The processed SVG text
-     */
-    function processSVGText(text) {
-        var query = queryString.replace('&', '&#38;'),
-            dataUrlCount,
-            stylesheetHTML;
-
-        dataUrlCount = util.countInStr(text, 'xlink:href="data:image');
-        // remove data:urls from the SVG content if the number exceeds MAX_DATA_URLS
-        if (dataUrlCount > MAX_DATA_URLS) {
-            // remove all data:url images that are smaller than 5KB
-            text = text.replace(/<image[\s\w-_="]*xlink:href="data:image\/[^"]{0,5120}"[^>]*>/ig, '');
-        }
-
-        // @TODO: remove this, because we no longer use any external assets in this way
-        // modify external asset urls for absolute path
-        text = text.replace(/href="([^"#:]*)"/g, function (match, group) {
-            return 'href="' + baseURL + group + query + '"';
-        });
-
-        // CSS text
-        stylesheetHTML = '<style>' + viewerConfig.cssText + '</style>';
-
-        // If using Firefox with no subpx support, add "text-rendering" CSS.
-        // @NOTE(plai): We are not adding this to Chrome because Chrome supports "textLength"
-        // on tspans and because the "text-rendering" property slows Chrome down significantly.
-        // In Firefox, we're waiting on this bug: https://bugzilla.mozilla.org/show_bug.cgi?id=890692
-        // @TODO: Use feature detection instead (textLength)
-        if (browser.firefox && !subpx.isSubpxSupported()) {
-            stylesheetHTML += '<style>text { text-rendering: geometricPrecision; }</style>';
-        }
-
-        // inline the CSS!
-        text = text.replace(/<xhtml:link[^>]*>/, stylesheetHTML);
-
-        return text;
-    }
-
-    /**
      * Load svg text if necessary
      * @returns {$.Promise}
      * @private
@@ -190,8 +145,6 @@ Crocodoc.addComponent('page-svg', function (scope) {
         if ($loadSVGTextPromise) {
             return $loadSVGTextPromise;
         }
-        var url = svgSrc + queryString;
-
         if (!$svg) {
             // If the svg element is not available, bypass asset loading
             // and return something that mimics a data-provider promise.
@@ -204,7 +157,7 @@ Crocodoc.addComponent('page-svg', function (scope) {
             });
         }
 
-        $loadSVGTextPromise = scope.get('page-svg', url);
+        $loadSVGTextPromise = scope.get('page-svg', page);
         return $loadSVGTextPromise;
     }
 
@@ -406,15 +359,12 @@ Crocodoc.addComponent('page-svg', function (scope) {
         /**
          * Initialize the page-svg component
          * @param {jQuery} $el The element to load SVG layer into
-         * @param  {Object} conf Configuration object
+         * @param  {number} pageNum The page number
          * @returns {void}
          */
-        init: function ($el, conf) {
+        init: function ($el, pageNum) {
             $svgLayer = $el;
-            config = conf;
-            baseURL = config.url;
-            svgSrc = config.svgSrc;
-            queryString = config.queryString || '';
+            page = pageNum;
             embedStrategy = viewerConfig.embedStrategy || embedStrategy;
         },
 
@@ -466,8 +416,8 @@ Crocodoc.addComponent('page-svg', function (scope) {
                             if (destroyed || unloaded) {
                                 return;
                             }
-                            svgText = processSVGText(text);
 
+                            svgText = text;
                             embedSVG();
                             completeLoad();
                             $deferred.resolve();
