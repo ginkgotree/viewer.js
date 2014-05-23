@@ -122,7 +122,13 @@ Crocodoc.addComponent('page', function (scope) {
         load: function () {
             var page = this,
                 $pageTextPromise;
+
             loadRequested = true;
+
+            // the page has failed to load for good... don't try anymore
+            if (status === Crocodoc.PAGE_STATUS_ERROR) {
+                return false;
+            }
 
             if (status === Crocodoc.PAGE_STATUS_LOADED || status === Crocodoc.PAGE_STATUS_LOADING) {
                 // try to load the text layer even though status is loaded,
@@ -141,8 +147,6 @@ Crocodoc.addComponent('page', function (scope) {
                 return false;
             }
 
-            $el.removeClass(CSS_CLASS_PAGE_ERROR);
-
             //load page
             status = Crocodoc.PAGE_STATUS_LOADING;
             return $.when(pageContent.load(), pageText.load())
@@ -155,7 +159,7 @@ Crocodoc.addComponent('page', function (scope) {
                         page.unload();
                     }
                 })
-                .fail(function handleLoadFail() {
+                .fail(function handleLoadFail(error) {
                     status = Crocodoc.PAGE_STATUS_ERROR;
                     $el.addClass(CSS_CLASS_PAGE_ERROR);
                     scope.broadcast('pagefail', { page: index + 1, error: error });

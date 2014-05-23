@@ -1,6 +1,7 @@
 /**
  * @fileoverview A standard data provider for page text
  * @author nsilva
+ * @author lakenen
  */
 Crocodoc.addDataProvider('page-text', function(scope) {
     'use strict';
@@ -9,8 +10,7 @@ Crocodoc.addDataProvider('page-text', function(scope) {
 
     var util = scope.getUtility('common'),
         ajax = scope.getUtility('ajax'),
-        config = scope.getConfig(),
-        baseURL = util.makeAbsolute(config.url);
+        config = scope.getConfig();
 
     /**
      * Process HTML text and return the embeddable result
@@ -47,9 +47,12 @@ Crocodoc.addDataProvider('page-text', function(scope) {
          */
         get: function(modelName, pageNum) {
             var textPath = util.template(config.template.html, { page: pageNum }),
-                url = baseURL + textPath + config.queryString,
-                $promise = ajax.fetch(url, 1);
+                url = config.url + textPath + config.queryString,
+                $promise = ajax.fetch(url, Crocodoc.ASSET_REQUEST_RETRIES);
 
+            // @NOTE: promise.then() creates a new promise, which does not copy
+            // custom properties, so we need to create a futher promise and add
+            // an object with the abort method as the new target
             return $promise.then(processTextContent).promise({
                 abort: $promise.abort
             });

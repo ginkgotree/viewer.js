@@ -58,6 +58,9 @@ var Crocodoc = (function () {
         PAGE_STATUS_LOADED:             'loaded',
         PAGE_STATUS_ERROR:              'error',
 
+        // The number of times to retry loading an asset before giving up
+        ASSET_REQUEST_RETRIES: 1,
+
         // exposed for testing purposes only
         // should not be accessed directly otherwise
         components: components,

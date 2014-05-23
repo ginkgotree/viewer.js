@@ -18,8 +18,8 @@ Crocodoc.addComponent('page-img', function (scope) {
     var browser = scope.getUtility('browser');
 
     var $img, $el,
-        imgSrc,
-        loading = false,
+        $loadImgPromise,
+        page,
         removeOnUnload = browser.mobile;
 
     //--------------------------------------------------------------------------
@@ -29,12 +29,13 @@ Crocodoc.addComponent('page-img', function (scope) {
     return {
         /**
          * Initialize the page-img component
-         * @param  {Object} config Configuration object
+         * @param  {Element} el     The element to insert the image into
+         * @param  {number} pageNum The page number
          * @returns {void}
          */
-        init: function (el, config) {
+        init: function (el, pageNum) {
             $el = $(el);
-            imgSrc = config.imgSrc + (config.queryString || '');
+            page = pageNum;
         },
 
         /**
@@ -54,37 +55,21 @@ Crocodoc.addComponent('page-img', function (scope) {
 
         /**
          * Load the image
-         * @returns {$.Deferred}    A jQuery Deferred object
+         * @returns {$.Promise}    A jQuery Promise object
          */
         load: function () {
-            var $deferred = $.Deferred();
-            if (!$img) {
-                // image hasn't been loaded yet, so create an image
-                var img = new window.Image();
-                loading = true;
-                // add load and error handlers
-                img.onload = function () {
-                    loading = false;
-                    $deferred.resolve();
-                };
-                img.onerror = function () {
-                    $img = null;
-                    $deferred.reject({
-                        error: 'failed to load image'
+            if (!$loadImgPromise) {
+                $loadImgPromise = scope.get('page-img', page)
+                    .then(function loadImgSuccess(img) {
+                        $img = $(img).appendTo($el);
+                    })
+                    .fail(function loadImgFail(error) {
+                        if (error) {
+                            scope.broadcast('asseterror', error);
+                        }
                     });
-                };
-                // load the image
-                img.src = imgSrc;
-                // insert into the DOM
-                $img = $(img);
-                $el.html($img);
-            } else {
-                if (!loading) {
-                    $deferred.resolve();
-                }
             }
-            $img.show();
-            return $deferred;
+            return $loadImgPromise;
         },
 
         /**
@@ -92,7 +77,10 @@ Crocodoc.addComponent('page-img', function (scope) {
          * @returns {void}
          */
         unload: function () {
-            loading = false;
+            if ($loadImgPromise) {
+                $loadImgPromise.abort();
+                $loadImgPromise = null;
+            }
             if ($img && removeOnUnload) {
                 $img.remove();
                 $img = null;

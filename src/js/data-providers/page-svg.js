@@ -1,5 +1,5 @@
 /**
- * @fileoverview A standard data provider for page elements
+ * @fileoverview A standard data provider for page-svg
  * @author nsilva
  * @author lakenen
  */
@@ -12,8 +12,7 @@ Crocodoc.addDataProvider('page-svg', function(scope) {
         ajax = scope.getUtility('ajax'),
         browser = scope.getUtility('browser'),
         subpx = scope.getUtility('subpx'),
-        config = scope.getConfig(),
-        baseURL = util.makeAbsolute(config.url);
+        config = scope.getConfig();
 
     /**
      * Process SVG text and return the embeddable result
@@ -36,7 +35,7 @@ Crocodoc.addDataProvider('page-svg', function(scope) {
         // @TODO: remove this, because we no longer use any external assets in this way
         // modify external asset urls for absolute path
         text = text.replace(/href="([^"#:]*)"/g, function (match, group) {
-            return 'href="' + baseURL + group + query + '"';
+            return 'href="' + config.url + group + query + '"';
         });
 
         // CSS text
@@ -71,9 +70,12 @@ Crocodoc.addDataProvider('page-svg', function(scope) {
          */
         get: function(modelName, pageNum) {
             var svgPath = util.template(config.template.svg, { page: pageNum }),
-                url = baseURL + svgPath + config.queryString,
-                $promise = ajax.fetch(url, 1);
+                url = config.url + svgPath + config.queryString,
+                $promise = ajax.fetch(url, Crocodoc.ASSET_REQUEST_RETRIES);
 
+            // @NOTE: promise.then() creates a new promise, which does not copy
+            // custom properties, so we need to create a futher promise and add
+            // an object with the abort method as the new target
             return $promise.then(processSVGContent).promise({
                 abort: $promise.abort
             });

@@ -111,6 +111,9 @@
                 return;
             }
 
+            // make the url absolute
+            config.url = util.makeAbsolute(config.url);
+
             viewerBase.loadAssets();
         };
 
