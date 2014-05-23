@@ -20,6 +20,7 @@ Crocodoc.addComponent('page-img', function (scope) {
     var $img, $el,
         $loadImgPromise,
         page,
+        imageLoaded = false,
         removeOnUnload = browser.mobile;
 
     //--------------------------------------------------------------------------
@@ -43,32 +44,44 @@ Crocodoc.addComponent('page-img', function (scope) {
          * @returns {void}
          */
         destroy: function () {
+            removeOnUnload = true;
+            this.unload();
             $el.empty();
         },
 
         /**
-         * Preload does nothing in this component -- it's here for
-         * consistency with the page-svg component API
+         * Preload the image
          * @returns {void}
          */
-        preload: function () { /* noop */ },
+        preload: function () {
+            if (!$loadImgPromise) {
+                $loadImgPromise = scope.get('page-img', page);
+            }
+        },
 
         /**
          * Load the image
          * @returns {$.Promise}    A jQuery Promise object
          */
         load: function () {
-            if (!$loadImgPromise) {
-                $loadImgPromise = scope.get('page-img', page)
-                    .done(function loadImgSuccess(img) {
-                        $img = $(img).appendTo($el);
-                    })
-                    .fail(function loadImgFail(error) {
-                        if (error) {
-                            scope.broadcast('asseterror', error);
-                        }
-                    });
-            }
+            this.preload();
+
+            $loadImgPromise.done(function loadImgSuccess(img) {
+                if (!imageLoaded) {
+                    imageLoaded = true;
+                    $img = $(img).appendTo($el);
+                }
+                // always show the image
+                $img.show();
+            });
+
+            $loadImgPromise.fail(function loadImgFail(error) {
+                imageLoaded = false;
+                if (error) {
+                    scope.broadcast('asseterror', error);
+                }
+            });
+
             return $loadImgPromise;
         },
 
@@ -80,10 +93,13 @@ Crocodoc.addComponent('page-img', function (scope) {
             if ($loadImgPromise) {
                 $loadImgPromise.abort();
             }
-            if ($img && removeOnUnload) {
-                $img.remove();
-                $img = null;
+            if (removeOnUnload) {
+                if ($img) {
+                    $img.remove();
+                    $img = null;
+                }
                 $loadImgPromise = null;
+                imageLoaded = false;
             } else if ($img) {
                 $img.hide();
             }

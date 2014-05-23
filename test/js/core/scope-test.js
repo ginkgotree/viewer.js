@@ -101,7 +101,6 @@ test('broadcast() should not fail if a component is destroyed in a broadcasted m
     var component3 = this.scope.createComponent(componentName);
     componentMock = this.mock(component2);
     component.onmessage = function () {
-        console.log('hi')
         self.scope.destroyComponent(component2);
     };
     this.scope.broadcast('test', data);
