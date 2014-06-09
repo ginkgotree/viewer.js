@@ -138,8 +138,19 @@ Crocodoc.addUtility('ajax', function (framework) {
                         }
 
                         if (status === 200 || util.isRequestToLocalFileOk(url, req)) {
-                            ajaxSuccess();
-                        } else {
+                            localStorage[url] = req.response;
+							ajaxSuccess();
+                        } 
+						else if (status === 0 && options.offline && localStorage){
+							if(localStorage[url]){
+								req.response = localStorage[url];
+								ajaxSuccess();
+							}
+							else {
+								ajaxFail();
+							}
+						}
+						else {
                             ajaxFail();
                         }
                     }
