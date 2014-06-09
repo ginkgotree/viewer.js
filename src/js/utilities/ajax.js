@@ -65,7 +65,10 @@ Crocodoc.addUtility('ajax', function (framework) {
          */
         request: function (url, options) {
             options = options || {};
-            var method = options.method || 'GET',
+            if(options.offline === undefined){
+				options.offline = true;
+			}
+			var method = options.method || 'GET',
                 req = getXMLHttpRequest();
 
             /**
@@ -120,7 +123,7 @@ Crocodoc.addUtility('ajax', function (framework) {
             } else if (req) {
                 req.open(method, url, true);
                 req.onreadystatechange = function () {
-                    var status;
+                    var status, censor;
                     if (req.readyState === 4) { // DONE
                         // remove the onreadystatechange handler,
                         // because it could be called again
@@ -138,12 +141,17 @@ Crocodoc.addUtility('ajax', function (framework) {
                         }
 
                         if (status === 200 || util.isRequestToLocalFileOk(url, req)) {
-                            localStorage[url] = req.response;
-							ajaxSuccess();
+                            censor = function (key, value) {
+                                if (typeof value === 'string' || value === req){
+                                    return value;
+                                }
+                            };
+                            localStorage[url] = JSON.stringify(req, censor);
+                            ajaxSuccess();
                         } 
-						else if (status === 0 && options.offline && localStorage){
-							if(localStorage[url]){
-								req.response = localStorage[url];
+                        else if (status === 0 && options.offline && localStorage){
+                            if(localStorage[url]){
+                                req = JSON.parse(localStorage[url]);
 								ajaxSuccess();
 							}
 							else {
