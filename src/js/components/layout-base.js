@@ -1,6 +1,6 @@
 /**
  * @fileoverview layout-base component definition
- * @author clakenen
+ * @author lakenen
  */
 
 /**
@@ -105,7 +105,11 @@ Crocodoc.addComponent('layout-base', function (scope) {
     //--------------------------------------------------------------------------
 
     return {
-        messages: ['resize', 'scroll', 'scrollend'],
+        messages: [
+            'resize',
+            'scroll',
+            'scrollend'
+        ],
 
         /**
          * Handle framework messages
@@ -861,6 +865,15 @@ Crocodoc.addComponent('layout-base', function (scope) {
         updateLayout: function () {},
         calculateZoomAutoValue: function () { return 1; },
         calculateNextPage: function () { return 1; },
-        calculatePreviousPage: function () { return 1; }
+        calculatePreviousPage: function () { return 1; },
+
+        /**
+         * Shortcut method to extend this layout
+         * @param   {Object} layout The layout mixins
+         * @returns {Object}        The extended layout
+         */
+        extend: function (layout) {
+            return util.extend({}, this, layout);
+        }
     };
 });

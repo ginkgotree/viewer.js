@@ -170,45 +170,6 @@ test('unloadUnnecessaryPages() should unload pages outside the page load range r
     ok(spy.calledWith(99), 'unloadPage() was called with '+ 99);
 });
 
-test('page should be added to the queue and loaded again when the page load callback is called with an error', function () {
-    var $deferred = $.Deferred();
-    this.pages.push(this.pageComponent);
-    this.component.init(this.pages);
-    var loadStub = this.stub(this.pageComponent, 'load').returns($deferred);
-
-    $deferred.reject('error');
-
-    var loadPageSpy = this.spy(this.component, 'loadPage');
-    this.component.queuePageToLoad(0);
-
-    this.clock.tick(50);
-    ok(loadPageSpy.calledWith(0), 'page loaded first time');
-
-    this.clock.tick(50);
-    ok(loadPageSpy.calledWith(0), 'page loaded second time');
-    ok(loadPageSpy.calledTwice, 'loadPage called exactly twice');
-});
-
-test('loadPage() should call page.fail() when page fails to load after retry', function () {
-    var $deferred = $.Deferred();
-    this.pages.push(this.pageComponent);
-    this.component.init(this.pages);
-    var loadStub = this.stub(this.pageComponent, 'load').returns($deferred);
-
-    $deferred.reject('error');
-
-    this.mock(this.pageComponent)
-        .expects('fail');
-
-    var loadPageSpy = this.spy(this.component, 'loadPage');
-    this.component.queuePageToLoad(0);
-
-    this.clock.tick(50);
-    ok(loadPageSpy.calledWith(0), 'page loaded first time');
-
-    this.clock.tick(50);
-    ok(loadPageSpy.calledWith(0), 'page loaded second time');
-});
 
 test('loadPage() should be called as many times as queuePageToLoad()', function () {
     var $deferred = $.Deferred();
@@ -250,9 +211,32 @@ test('loadVisiblePages() should queue all visible pages to load when called', fu
     }
 });
 
+test('handleReady() should load visible pages when called', function () {
+    this.component.init(this.pages);
+
+    this.mock(this.component)
+        .expects('loadVisiblePages');
+    this.component.handleReady();
+});
+
+test('handleReady() should load necessary pages after a timeout when called', function () {
+    this.clock = sinon.useFakeTimers();
+    this.component.init(this.pages);
+
+    this.mock(this.component)
+        .expects('loadNecessaryPages');
+    this.component.handleReady();
+    this.clock.tick(1000);
+    this.clock.restore();
+});
+
 test('handleZoom() should load necessary pages and update layout state when called', function () {
+    this.component.init(this.pages);
+    this.component.handleReady();
+
     var mock = this.mock(this.component),
         data = { page: 2, visiblePages: [2] };
+
     mock.expects('loadNecessaryPages');
     mock.expects('updateLayoutState').withArgs(data);
     this.component.handleZoom(data);
@@ -265,6 +249,9 @@ test('handleScroll() should call cancel page loading when called', function () {
 });
 
 test('handleScrollEnd() should load necessary pages and unload unnecessary ones when called', function () {
+    this.component.init(this.pages);
+    this.component.handleReady();
+
     var mock = this.mock(this.component);
     mock.expects('loadNecessaryPages');
     mock.expects('unloadUnnecessaryPages');
@@ -272,6 +259,9 @@ test('handleScrollEnd() should load necessary pages and unload unnecessary ones 
 });
 
 test('handlePageFocus() should call update the layout state, cancel any page loading, and then (eventually) load necessary pages when called', function () {
+    this.component.init(this.pages);
+    this.component.handleReady();
+
     var mock = this.mock(this.component);
     var data = { page: 1, visiblePages: [1] };
     mock.expects('updateLayoutState').withArgs(data);
@@ -290,6 +280,9 @@ test('unloadPage() should call page.unload() when called with a valid page index
 });
 
 test('handlePageAvailable() should queue the appropriate pages to load when called with data.page', function () {
+    this.component.init(this.pages);
+    this.component.handleReady();
+
     var page = 4;
     for (var i = 0; i < 10; i++) {
         this.pages.push(this.pageComponent);
@@ -302,6 +295,9 @@ test('handlePageAvailable() should queue the appropriate pages to load when call
 });
 
 test('handlePageAvailable() should queue the appropriate pages to load when called with data.upto', function () {
+    this.component.init(this.pages);
+    this.component.handleReady();
+
     var page = 3;
     for (var i = 0; i < 10; i++) {
         this.pages.push(this.pageComponent);
@@ -309,6 +305,22 @@ test('handlePageAvailable() should queue the appropriate pages to load when call
     this.component.init(this.pages);
     var spy = this.spy(this.component, 'queuePageToLoad');
     this.component.handlePageAvailable({ upto: page });
+    ok(spy.calledWith(0));
+    ok(spy.calledWith(1));
+    ok(spy.calledWith(2));
+});
+
+test('handlePageAvailable() should queue the appropriate pages to load when called with data.all', function () {
+    this.component.init(this.pages);
+    this.component.handleReady();
+
+    var page = 3;
+    for (var i = 0; i < 10; i++) {
+        this.pages.push(this.pageComponent);
+    }
+    this.component.init(this.pages);
+    var spy = this.spy(this.component, 'queuePageToLoad');
+    this.component.handlePageAvailable({ all: true });
     ok(spy.calledWith(0));
     ok(spy.calledWith(1));
     ok(spy.calledWith(2));

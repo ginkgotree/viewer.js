@@ -18,6 +18,8 @@
     <script src="../../node_modules/sinon/pkg/sinon.js"></script>
     <script src="../../node_modules/sinon/pkg/sinon-ie.js"></script>
     <script src="../../node_modules/sinon-qunit/lib/sinon-qunit.js"></script>
+
+    <!-- Leave this commented out unless you want to check code coverage, because it makes tests a bit slower -->
     <!-- <script src="../../node_modules/blanket/dist/qunit/blanket.js"></script> -->
 
 
@@ -34,12 +36,16 @@
     <script src="../../src/js/utilities/subpx.js"></script>
     <script src="../../src/js/utilities/support.js"></script>
     <script src="../../src/js/utilities/common.js"></script>
+    <script src="../../src/js/utilities/url.js"></script>
 
 
     <!-- Plugin source files -->
     <script src="../../plugins/fullscreen/fullscreen.js" data-cover></script>
+    <script src="../../plugins/realtime/realtime.js" data-cover></script>
 
     <!-- Test Files -->
     <script src="fullscreen/fullscreen-test.js"></script>
+    <script src="realtime/crocodoc.realtime-test.js"></script>
+    <script src="realtime/realtime-test.js"></script>
 </body>
 </html>

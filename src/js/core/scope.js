@@ -1,6 +1,6 @@
 /**
  * @fileoverview Scope class definition
- * @author clakenen
+ * @author lakenen
  */
 
  (function () {
@@ -13,9 +13,62 @@
      */
     Crocodoc.Scope = function Scope(config) {
 
+        //----------------------------------------------------------------------
+        // Private
+        //----------------------------------------------------------------------
+
         var util = Crocodoc.getUtility('common');
 
-        var instances = [];
+        var instances = [],
+            messageQueue = [],
+            dataProviders = {},
+            ready = false;
+
+        /**
+         * Broadcast a message to all components in this scope that have registered
+         * a listener for the named message type
+         * @param  {string} messageName The message name
+         * @param  {any} data The message data
+         * @returns {void}
+         * @private
+         */
+        function broadcast(messageName, data) {
+            var i, len, instance, messages;
+            for (i = 0, len = instances.length; i < len; ++i) {
+                instance = instances[i];
+                if (!instance) {
+                    continue;
+                }
+                messages = instance.messages || [];
+
+                if (util.inArray(messageName, messages) !== -1) {
+                    if (typeof instance.onmessage === 'function') {
+                        instance.onmessage.call(instance, messageName, data);
+                    }
+                }
+            }
+        }
+
+        /**
+         * Broadcasts any (pageavailable) messages that were queued up
+         * before the viewer was ready
+         * @returns {void}
+         * @private
+         */
+        function broadcastQueuedMessages() {
+            var message;
+            while (messageQueue.length) {
+                message = messageQueue.shift();
+                broadcast(message.name, message.data);
+            }
+            messageQueue = null;
+        }
+
+        //----------------------------------------------------------------------
+        // Public
+        //----------------------------------------------------------------------
+
+        config.dataProviders = config.dataProviders || {};
 
         /**
          * Create and return an instance of the named component,
@@ -65,29 +118,20 @@
                 }
             }
             instances = [];
+            dataProviders = {};
         };
 
         /**
-         * Broadcast a message to all components in this scope that have registered
-         * a listener for the named message type
-         * @param  {string} messageName The message name
-         * @param  {any} data The message data
+         * Broadcast a message or queue it until the viewer is ready
+         * @param   {string} name The name of the message
+         * @param   {*} data The message data
          * @returns {void}
          */
         this.broadcast = function (messageName, data) {
-            var i, len, instance, messages;
-            for (i = 0, len = instances.length; i < len; ++i) {
-                instance = instances[i];
-                if (!instance) {
-                    continue;
-                }
-                messages = instance.messages || [];
-
-                if (util.inArray(messageName, messages) !== -1) {
-                    if (typeof instance.onmessage === 'function') {
-                        instance.onmessage.call(instance, messageName, data);
-                    }
-                }
+            if (ready) {
+                broadcast(messageName, data);
+            } else {
+                messageQueue.push({ name: messageName, data: data });
             }
         };
 
@@ -106,6 +150,53 @@
          */
         this.getConfig = function () {
             return config;
+        };
+
+        /**
+         * Tell the scope that the viewer is ready and broadcast queued messages
+         * @returns {void}
+         */
+        this.ready = function () {
+            if (!ready) {
+                ready = true;
+                broadcastQueuedMessages();
+            }
+        };
+
+        /**
+         * Get a model object from a data provider. If the objectType is listed
+         * in config.dataProviders, this will get the value from the data
+         * provider that is specified in that map instead.
+         * @param {string} objectType The type of object to retrieve ('page-svg', 'page-text', etc)
+         * @param {string} objectKey  The key of the object to retrieve
+         * @returns {$.Promise}
+         */
+        this.get = function(objectType, objectKey) {
+            var newObjectType = config.dataProviders[objectType] || objectType;
+
+            var provider = this.getDataProvider(newObjectType);
+            if (provider) {
+                return provider.get(objectType, objectKey);
+            }
+            return $.Deferred().reject('data-provider not found').promise();
+        };
+
+        /**
+         * Get an instance of a data provider. Ignores config.dataProviders
+         * overrides.
+         * @param {string} objectType The type of object to retrieve a data provider for ('page-svg', 'page-text', etc)
+         * @returns {Object} The data provider
+         */
+        this.getDataProvider = function (objectType) {
+            var provider;
+            if (dataProviders[objectType]) {
+                provider = dataProviders[objectType];
+            } else {
+                provider = this.createComponent('data-provider-' + objectType);
+                dataProviders[objectType] = provider;
+            }
+
+            return provider;
         };
     };
 })();

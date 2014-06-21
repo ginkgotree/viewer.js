@@ -1,6 +1,6 @@
 /**
  * @fileoverview viewer-base component
- * @author clakenen
+ * @author lakenen
  */
 
 Crocodoc.addComponent('viewer-base', function (scope) {
@@ -59,7 +59,6 @@ Crocodoc.addComponent('viewer-base', function (scope) {
     var DOCUMENT_100_PERCENT_WIDTH = 1024;
 
     var util = scope.getUtility('common'),
-        ajax = scope.getUtility('ajax'),
         browser = scope.getUtility('browser'),
         support = scope.getUtility('support');
 
@@ -72,7 +71,7 @@ Crocodoc.addComponent('viewer-base', function (scope) {
         scroller,
         resizer,
         dragger,
-        destroyed = false;
+        $assetsPromise;
 
     /**
      * Add CSS classes to the element for necessary feature/support flags
@@ -245,6 +244,20 @@ Crocodoc.addComponent('viewer-base', function (scope) {
             page: config.page || 1,
             numPages: config.numPages
         });
+
+        scope.ready();
+    }
+
+    /**
+     * Return the expected conversion status of the given page index
+     * @param   {int} pageIndex The page index
+     * @returns {string}        The page status
+     */
+    function getPageStatus(pageIndex) {
+        if (pageIndex === 0 || config.conversionIsComplete) {
+            return Crocodoc.PAGE_STATUS_NOT_LOADED;
+        }
+        return Crocodoc.PAGE_STATUS_CONVERTING;
     }
 
     /**
@@ -256,32 +269,16 @@ Crocodoc.addComponent('viewer-base', function (scope) {
         var i,
             pages = [],
             page,
-            svgSrc,
-            imgSrc,
-            textSrc,
-            cssSrc,
             start = config.pageStart - 1,
             end = config.pageEnd,
-            url = util.makeAbsolute(config.url),
-            status = config.conversionIsComplete ? Crocodoc.PAGE_STATUS_NOT_LOADED : Crocodoc.PAGE_STATUS_CONVERTING,
             links = sortPageLinks();
 
         //initialize pages
         for (i = start; i < end; i++) {
-            svgSrc = url + util.template(config.template.svg, {page: i + 1});
-            textSrc = url + util.template(config.template.html, {page: i + 1});
-            imgSrc = url + util.template(config.template.img, {page: i + 1});
-            cssSrc = url + config.template.css;
             page = scope.createComponent('page');
             page.init(config.$pages.eq(i - start), {
                 index: i,
-                url: url,
-                imgSrc: imgSrc,
-                svgSrc: svgSrc,
-                textSrc: textSrc,
-                cssSrc: cssSrc,
-                status: status,
-                queryString: config.queryString,
+                status: getPageStatus(i),
                 enableLinks: config.enableLinks,
                 links: links[i],
                 pageScale: config.pageScale
@@ -346,60 +343,6 @@ Crocodoc.addComponent('viewer-base', function (scope) {
      */
     function handleMouseUp() {
         updateSelectedPages();
-    }
-
-    /**
-     * Load the given resource via AJAX request, and retry if necessary
-     * @param {boolean} retry Whether to retry if the resource fails to load
-     * @returns {$.Promise}
-     * @private
-     */
-    function loadResource(url, retry) {
-        var $deferred = $.Deferred();
-
-        function retryOrFail(error) {
-            scope.broadcast('asseterror', error);
-            if (retry) {
-                // don't retry next time
-                loadResource(url, false)
-                    .then(function (responseText) {
-                        $deferred.resolve(responseText);
-                    })
-                    .fail(function (err) {
-                        $deferred.reject(err);
-                    });
-            } else {
-                $deferred.reject(error);
-            }
-        }
-
-        ajax.request(url, {
-            success: function () {
-                if (destroyed) {
-                    return;
-                }
-                if (!this.responseText) {
-                    retryOrFail({
-                        error: 'empty response',
-                        status: this.status,
-                        resource: url
-                    });
-                    return;
-                }
-                $deferred.resolve(this.responseText);
-            },
-            fail: function () {
-                if (destroyed) {
-                    return;
-                }
-                retryOrFail({
-                    error: this.statusText,
-                    status: this.status,
-                    resource: url
-                });
-            }
-        });
-        return $deferred.promise();
     }
 
     /**
@@ -546,6 +489,23 @@ Crocodoc.addComponent('viewer-base', function (scope) {
             $el.addClass(CSS_CLASS_VIEWER);
             $el.addClass(config.namespace);
 
+            // add a / to the end of the base url if necessary
+            if (config.url) {
+                if (!/\/$/.test(config.url)) {
+                    config.url += '/';
+                }
+            } else {
+                throw new Error('no URL given for viewer assets');
+            }
+
+            if (browser.ielt9) {
+                config.enableTextSelection = false;
+            }
+
+            // make the url absolute
+            config.url = scope.getUtility('url').makeAbsolute(config.url);
+
+            validateQueryParams();
             initViewerHTML();
             initPlugins();
         },
@@ -567,7 +527,9 @@ Crocodoc.addComponent('viewer-base', function (scope) {
             // remove the stylesheet
             $(stylesheetEl).remove();
 
-            destroyed = true;
+            if ($assetsPromise) {
+                $assetsPromise.abort();
+            }
         },
 
         /**
@@ -630,19 +592,14 @@ Crocodoc.addComponent('viewer-base', function (scope) {
          * @returns {void}
          */
         loadAssets: function () {
-            var absolutePath = util.makeAbsolute(config.url),
-                stylesheetURL = absolutePath + config.template.css,
-                metadataURL = absolutePath + config.template.json,
-                $loadStylesheetPromise,
-                $loadMetadataPromise;
+            var $loadStylesheetPromise,
+                $loadMetadataPromise,
+                $pageOneContentPromise,
+                $pageOneTextPromise;
 
-            validateQueryParams();
-            stylesheetURL += config.queryString;
-            metadataURL += config.queryString;
-
-            $loadMetadataPromise = loadResource(metadataURL, true);
-            $loadMetadataPromise.then(function handleMetadataResponse(responseText) {
-                config.metadata = $.parseJSON(responseText);
+            $loadMetadataPromise = scope.get('metadata');
+            $loadMetadataPromise.then(function handleMetadataResponse(metadata) {
+                config.metadata = metadata;
                 validateConfig();
             });
 
@@ -650,30 +607,51 @@ Crocodoc.addComponent('viewer-base', function (scope) {
             if (browser.ielt9) {
                 stylesheetEl = util.insertCSS('');
                 config.stylesheet = stylesheetEl.styleSheet;
-                $loadStylesheetPromise = $.when();
+                $loadStylesheetPromise = $.when('').promise({
+                    abort: function () {}
+                });
             } else {
-                $loadStylesheetPromise = loadResource(stylesheetURL, true);
-                $loadStylesheetPromise.then(function handleStylesheetResponse(responseText) {
-                    // @NOTE: There is a bug in IE that causes the text layer to
-                    // not render the font when loaded for a second time (i.e.,
-                    // destroy and recreate a viewer for the same document), so
-                    // namespace the font-family so there is no collision
-                    if (browser.ie) {
-                        responseText = responseText.replace(/font-family:[\s\"\']*([\w-]+)\b/g,
-                            '$0-' + config.id);
-                    }
-                    config.cssText = responseText;
-                    stylesheetEl = util.insertCSS(responseText);
+                $loadStylesheetPromise = scope.get('stylesheet');
+                $loadStylesheetPromise.then(function handleStylesheetResponse(cssText) {
+                    stylesheetEl = util.insertCSS(cssText);
                     config.stylesheet = stylesheetEl.sheet;
                 });
             }
 
+            // load page 1 assets immediately if necessary
+            if (!config.pageStart || config.pageStart === 1) {
+                if (support.svg) {
+                    $pageOneContentPromise = scope.get('page-svg', 1);
+                } else if (config.conversionIsComplete) {
+                    // unfortunately, page-1.png is not necessarily available
+                    // on View API's document.viewable event, so we can only
+                    // prefetch page-1.png if conversion is complete
+                    $pageOneContentPromise = scope.get('page-img', 1);
+                }
+                if (config.enableTextSelection) {
+                    $pageOneTextPromise = scope.get('page-text', 1);
+                }
+            }
+
             // when both metatadata and stylesheet are done or if either fails...
-            $.when($loadMetadataPromise, $loadStylesheetPromise)
+            $assetsPromise = $.when($loadMetadataPromise, $loadStylesheetPromise)
                 .fail(function (error) {
+                    scope.broadcast('asseterror', error);
                     scope.broadcast('fail', error);
                 })
-                .then(completeInit);
+                .then(completeInit)
+                .promise({
+                    abort: function () {
+                        $loadMetadataPromise.abort();
+                        $loadStylesheetPromise.abort();
+                        if ($pageOneContentPromise) {
+                            $pageOneContentPromise.abort();
+                        }
+                        if ($pageOneTextPromise) {
+                            $pageOneTextPromise.abort();
+                        }
+                    }
+                });
         }
     };
 });

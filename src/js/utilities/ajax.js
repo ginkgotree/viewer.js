@@ -1,13 +1,14 @@
 /**
  * @fileoverview ajax utility definition
- * @author clakenen
+ * @author lakenen
  */
 
 Crocodoc.addUtility('ajax', function (framework) {
 
     'use strict';
 
-    var util = framework.getUtility('common');
+    var util = framework.getUtility('common'),
+        urlUtil = framework.getUtility('url');
 
     /**
      * Creates a request object to call the success/fail handlers on
@@ -53,9 +54,21 @@ Crocodoc.addUtility('ajax', function (framework) {
         }
     }
 
+    /**
+    * Returns true if a request made to a local file has a status equals zero (0)
+    * and if it has a response text
+    * @param   {string}  url The URL
+    * @param   {Object}  request The request object
+    */
+    function isRequestToLocalFileOk(url, request) {
+        return urlUtil.parse(url).protocol === 'file:' &&
+               request.status === 0 &&
+               request.responseText !== '';
+    }
+
     return {
         /**
-         * Basic AJAX request
+         * Make a raw AJAX request
          * @param   {string}     url               request URL
          * @param   {Object}     [options]         AJAX request options
          * @param   {string}     [options.method]  request method, eg. 'GET', 'POST' (defaults to 'GET')
@@ -93,7 +106,7 @@ Crocodoc.addUtility('ajax', function (framework) {
                 }
             }
 
-            if (util.isCrossDomain(url) && !('withCredentials' in req)) {
+            if (urlUtil.isCrossDomain(url) && !('withCredentials' in req)) {
                 if ('XDomainRequest' in window) {
                     req = new window.XDomainRequest();
                     try {
@@ -140,7 +153,7 @@ Crocodoc.addUtility('ajax', function (framework) {
                             return;
                         }
 
-                        if (status === 200 || util.isRequestToLocalFileOk(url, req)) {
+                        if (status === 200 || isRequestToLocalFileOk(url, req)) {
                             censor = function (key, value) {
                                 if (typeof value === 'string' || value === req){
                                     return value;
@@ -173,6 +186,79 @@ Crocodoc.addUtility('ajax', function (framework) {
             }
 
             return req;
+        },
+
+        /**
+         * Fetch an asset, retrying if necessary
+         * @param {string} url      A url for the desired asset
+         * @param {number} retries  The number of times to retry if the request fails
+         * @returns {$.Promise}     A promise with an additional abort() method that will abort the XHR request.
+         */
+        fetch: function (url, retries) {
+            var req,
+                aborted = false,
+                ajax = framework.getUtility('ajax'),
+                $deferred = $.Deferred();
+
+            /**
+             * If there are retries remaining, make another attempt, otherwise
+             * give up and reject the deferred
+             * @param   {Object} error The error object
+             * @returns {void}
+             * @private
+             */
+            function retryOrFail(error) {
+                if (retries > 0) {
+                    // if we have retries remaining, make another request
+                    retries--;
+                    req = request();
+                } else {
+                    // finally give up
+                    $deferred.reject(error);
+                }
+            }
+
+            /**
+             * Make an AJAX request for the asset
+             * @returns {XMLHttpRequest|XDomainRequest} Request object
+             * @private
+             */
+            function request() {
+                return ajax.request(url, {
+                    success: function () {
+                        if (!aborted) {
+                            if (this.responseText) {
+                                $deferred.resolve(this.responseText);
+                            } else {
+                                // the response was empty, so consider this a
+                                // failed request
+                                retryOrFail({
+                                    error: 'empty response',
+                                    status: this.status,
+                                    resource: url
+                                });
+                            }
+                        }
+                    },
+                    fail: function () {
+                        if (!aborted) {
+                            retryOrFail({
+                                error: this.statusText,
+                                status: this.status,
+                                resource: url
+                            });
+                        }
+                    }
+                });
+            }
+
+            req = request();
+            return $deferred.promise({
+                abort: function() {
+                    aborted = true;
+                    req.abort();
+                }
+            });
         }
     };
 });

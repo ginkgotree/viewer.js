@@ -1,6 +1,6 @@
 /**
  * @fileoverview Base namespaces for Crocodoc JavaScript.
- * @author clakenen
+ * @author lakenen
  */
 
 /*global Crocodoc:true*/
@@ -57,6 +57,9 @@ var Crocodoc = (function () {
         PAGE_STATUS_LOADING:            'loading',
         PAGE_STATUS_LOADED:             'loaded',
         PAGE_STATUS_ERROR:              'error',
+
+        // The number of times to retry loading an asset before giving up
+        ASSET_REQUEST_RETRIES: 1,
 
         // exposed for testing purposes only
         // should not be accessed directly otherwise
@@ -122,6 +125,15 @@ var Crocodoc = (function () {
          */
         addPlugin: function (name, creator) {
             this.addComponent('plugin-' + name, creator);
+        },
+
+        /**
+         * Register a new Crocodoc data provider
+         * @param {string} modelName The model name this data provider provides
+         * @param {Function} creator Factory function used to create an instance of the data provider.
+         */
+        addDataProvider: function(modelName, creator) {
+            this.addComponent('data-provider-' + modelName, creator);
         },
 
         /**

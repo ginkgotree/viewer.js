@@ -1,6 +1,6 @@
 /**
  * @fileoverview Page component
- * @author clakenen
+ * @author lakenen
  */
 
 /**
@@ -31,9 +31,12 @@ Crocodoc.addComponent('page', function (scope) {
         loadRequested = false;
 
     return {
-        errorCount: 0,
-
-        messages: ['pageavailable', 'textenabledchange', 'pagefocus', 'zoom'],
+        messages: [
+            'pageavailable',
+            'pagefocus',
+            'textenabledchange',
+            'zoom'
+        ],
 
         /**
          * Handle framework messages
@@ -44,7 +47,7 @@ Crocodoc.addComponent('page', function (scope) {
         onmessage: function (name, data) {
             switch (name) {
                 case 'pageavailable':
-                    if (data.page === index + 1 || data.upto > index) {
+                    if (data.page === index + 1 || data.upto > index || data.all === true) {
                         if (status === Crocodoc.PAGE_STATUS_CONVERTING) {
                             status = Crocodoc.PAGE_STATUS_NOT_LOADED;
                         }
@@ -78,24 +81,24 @@ Crocodoc.addComponent('page', function (scope) {
             $text = $pageEl.find('.' + CSS_CLASS_PAGE_TEXT);
             $links = $pageEl.find('.' + CSS_CLASS_PAGE_LINKS);
 
+            status = config.status || Crocodoc.PAGE_STATUS_NOT_LOADED;
+            index = config.index;
+            pageNum = index + 1;
+            this.config = config;
+
             config.url = config.url || '';
             pageText = scope.createComponent('page-text');
             pageContent = support.svg ?
                     scope.createComponent('page-svg') :
                     scope.createComponent('page-img');
 
-            pageText.init($text, config);
-            pageContent.init($svg, config);
+            pageText.init($text, pageNum);
+            pageContent.init($svg, pageNum);
 
             if (config.enableLinks && config.links.length) {
                 pageLinks = scope.createComponent('page-links');
                 pageLinks.init($links, config.links);
             }
-
-            status = config.status || Crocodoc.PAGE_STATUS_NOT_LOADED;
-            index = config.index;
-            pageNum = index + 1;
-            this.config = config;
         },
 
         /**
@@ -111,6 +114,7 @@ Crocodoc.addComponent('page', function (scope) {
          * @returns {void}
          */
         preload: function () {
+            pageContent.prepare();
             if (status === Crocodoc.PAGE_STATUS_NOT_LOADED) {
                 pageContent.preload();
                 pageText.preload();
@@ -122,20 +126,13 @@ Crocodoc.addComponent('page', function (scope) {
          * @returns {$.Promise}    jQuery Promise object or false if the page is not loading
          */
         load: function () {
-            var page = this,
-                $pageTextPromise;
+            var pageComponent = this;
+
             loadRequested = true;
 
-            if (status === Crocodoc.PAGE_STATUS_LOADED || status === Crocodoc.PAGE_STATUS_LOADING) {
-                // try to load the text layer even though status is loaded,
-                // because it might have been disabled the last time page
-                // load was requested
-                $pageTextPromise = pageText.load();
-                // if the page is not loading, return false
-                if ($pageTextPromise && $pageTextPromise.state() !== 'pending') {
-                    return false;
-                }
-                return $pageTextPromise;
+            // the page has failed to load for good... don't try anymore
+            if (status === Crocodoc.PAGE_STATUS_ERROR) {
+                return false;
             }
 
             // don't actually load if the page is converting
@@ -143,37 +140,28 @@ Crocodoc.addComponent('page', function (scope) {
                 return false;
             }
 
-            $el.removeClass(CSS_CLASS_PAGE_ERROR);
-
-            //load page
-            status = Crocodoc.PAGE_STATUS_LOADING;
+            // request assets to be loaded... but only ACTUALLY load if it is
+            // not loaded already
+            if (status !== Crocodoc.PAGE_STATUS_LOADED) {
+                status = Crocodoc.PAGE_STATUS_LOADING;
+            }
             return $.when(pageContent.load(), pageText.load())
                 .done(function handleLoadDone() {
                     if (loadRequested) {
-                        status = Crocodoc.PAGE_STATUS_LOADED;
-                        $el.removeClass(CSS_CLASS_PAGE_LOADING);
-                        scope.broadcast('pageload', { page: pageNum });
+                        if (status !== Crocodoc.PAGE_STATUS_LOADED) {
+                            $el.removeClass(CSS_CLASS_PAGE_LOADING);
+                            status = Crocodoc.PAGE_STATUS_LOADED;
+                            scope.broadcast('pageload', { page: pageNum });
+                        }
                     } else {
-                        page.unload();
+                        pageComponent.unload();
                     }
                 })
-                .fail(function handleLoadFail() {
-                    status = Crocodoc.PAGE_STATUS_NOT_LOADED;
-                    $el.removeClass(CSS_CLASS_PAGE_LOADING);
+                .fail(function handleLoadFail(error) {
+                    status = Crocodoc.PAGE_STATUS_ERROR;
+                    $el.addClass(CSS_CLASS_PAGE_ERROR);
+                    scope.broadcast('pagefail', { page: index + 1, error: error });
                 });
-        },
-
-
-        /**
-         * Mark the page as failed, i.e., loading will not be retried again for this page
-         * and broadcast a pagefail event for this page
-         * @param {Object} error The error object
-         * @returns {void}
-         */
-        fail: function (error) {
-            status = Crocodoc.PAGE_STATUS_ERROR;
-            $el.addClass(CSS_CLASS_PAGE_ERROR);
-            scope.broadcast('pagefail', { page: index + 1, error: error });
         },
 
         /**

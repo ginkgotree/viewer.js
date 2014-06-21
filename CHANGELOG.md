@@ -2,6 +2,25 @@
 
 Viewer.js uses [semantic versioning](http://semver.org/) for its version numbers.
 
+* **0.5.4**
+  * Fix [#70](https://github.com/box/viewer.js/issues/70) - IE 11 crashes when unloading pages
+* **0.5.3**
+  * Fix IE9 issue with box-sizing: initial
+  * LazyLader: only load visible pages initially to improve initial load performance
+* **0.5.2**
+  * Fix issue with optimistic asset prefetching in non-svg browsers (e.g., IE 8)
+* **0.5.1**
+  * Preload page 1 assets ASAP to reduce time to view page 1.
+  * Fix a bug where requests for text layer assets could be duplicated unnecessarily
+* **0.5.0**
+  * Add realtime plugin
+  * Add data providers
+  * Fixed some browser warnings 
+* **0.4.5**
+  * Fix [#49](https://github.com/box/viewer.js/issues/49) - Centering broken if Bootstrap css loaded
+  * Fix [#40](https://github.com/box/viewer.js/issues/40) - Hidden document viewer does not load pages in Firefox
+  * Fix [#37](https://github.com/box/viewer.js/issues/37) - exceptions thrown in AJAX request handler are swallowed
+  * Fix [#24](https://github.com/box/viewer.js/issues/24) - Enable request to local files
 * **0.4.4**
   * Fix issue where PNG fallback breaks zooming on mobile devices
   * Add `linkclick` viewer event

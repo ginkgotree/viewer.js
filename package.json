@@ -1,8 +1,11 @@
 {
   "name": "viewer",
-  "version": "0.4.4",
+  "version": "0.5.4",
   "description": "A viewer for documents converted with the Box View API",
   "author": "Cameron Lakenen <lakenen@box.com>",
+  "contributors": [
+      "Nicholas Silva <nes@box.com>"
+  ],
   "main": "dist/crocodoc.viewer.js",
   "repository": {
     "type": "git",
@@ -20,6 +23,7 @@
     "viewer",
     "viewerjs"
   ],
+  "homepage": "https://github.com/box/viewer.js",
   "bugs": {
     "url": "https://github.com/box/viewer.js/issues"
   },
@@ -49,6 +53,8 @@
     "jquery": "^1.11.1",
     "qunitjs": "^1.14.0",
     "qunit-parameterize": "^0.4.0",
-    "blanket": "^1.1.6"
+    "blanket": "^1.1.6",
+    "event-source-polyfill": "0.0.1",
+    "grunt-parallel": "^0.3.1"
   }
 }

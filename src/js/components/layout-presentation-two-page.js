@@ -1,6 +1,6 @@
 /**
  * @fileoverview layout-presentation-two-page component definition
- * @author clakenen
+ * @author lakenen
  */
 
 /**
@@ -20,7 +20,7 @@ Crocodoc.addComponent('layout-' + Crocodoc.LAYOUT_PRESENTATION_TWO_PAGE, ['layou
     // Public
     //--------------------------------------------------------------------------
 
-    return util.extend({}, presentation, {
+    return presentation.extend({
         /**
          * Initialize the presentation-two-page layout component
          * @returns {void}
