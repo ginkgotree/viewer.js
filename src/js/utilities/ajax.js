@@ -74,14 +74,15 @@ Crocodoc.addUtility('ajax', function (framework) {
          * @param   {string}     [options.method]  request method, eg. 'GET', 'POST' (defaults to 'GET')
          * @param   {Function}   [options.success] success callback function
          * @param   {Function}   [options.fail]    fail callback function
+         * @param   {Boolean}    [options.offline] cache requests for offline access (defaults to true)
          * @returns {XMLHttpRequest|XDomainRequest} Request object
          */
         request: function (url, options) {
             options = options || {};
             if(options.offline === undefined){
-				options.offline = true;
-			}
-			var method = options.method || 'GET',
+                options.offline = true;
+            }
+            var method = options.method || 'GET',
                 req = getXMLHttpRequest();
 
             /**
@@ -154,24 +155,29 @@ Crocodoc.addUtility('ajax', function (framework) {
                         }
 
                         if (status === 200 || isRequestToLocalFileOk(url, req)) {
-                            censor = function (key, value) {
-                                if (typeof value === 'string' || value === req){
-                                    return value;
-                                }
-                            };
-                            localStorage[url] = JSON.stringify(req, censor);
+                            if(options.offline){
+                                //censor for filtering out non string attributes
+                                censor = function (key, value) {
+                                    if (typeof value === 'string' || value === req){
+                                         return value;
+                                    }
+                                };
+                                //cache a cheap copy of the XHR in localStorage
+                                localStorage[url] = JSON.stringify(req, censor);
+                            }
                             ajaxSuccess();
                         } 
                         else if (status === 0 && options.offline && localStorage){
+                            //if we're offline load the cached XHR if we have one
                             if(localStorage[url]){
                                 req = JSON.parse(localStorage[url]);
-								ajaxSuccess();
-							}
-							else {
-								ajaxFail();
-							}
-						}
-						else {
+                                ajaxSuccess();
+                            }
+                            else {
+                                ajaxFail();
+                            }
+                        }
+                        else {
                             ajaxFail();
                         }
                     }
